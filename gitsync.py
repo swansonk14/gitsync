@@ -3,8 +3,8 @@ import os
 from subprocess import Popen, PIPE
 import time
 
-def check_branch():
-	if get_branch_name() != 'sync':
+def check_branch(branch_name):
+	if get_branch_name() != branch_name:
 		exit()
 
 def get_branch_name():
@@ -21,19 +21,19 @@ def get_status():
 
 	return status
 
-def pull():
-	p = Popen(['git', 'pull', 'origin', 'sync'], stdout=PIPE, stderr=PIPE)
+def pull(branch_name):
+	p = Popen(['git', 'pull', 'origin', branch_name], stdout=PIPE, stderr=PIPE)
 	out = p.communicate()[0].decode('utf-8')
 	if 'Already up-to-date' not in out:
 		print(out)
 
-def push():
+def push(branch_name):
 	Popen(['git', 'add', '*']).wait()
 	Popen(['git', 'status']).wait()
-	Popen(['git', 'commit', '-m', 'sync']).wait()
-	Popen(['git', 'push', 'origin', 'sync']).wait()
+	Popen(['git', 'commit', '-m', branch_name]).wait()
+	Popen(['git', 'push', 'origin', branch_name]).wait()
 
-def main(create):
+def main(create, branch_name):
 	# Exit if changes in current branch
 	status = get_status()
 	if not 'nothing to commit' in status:
@@ -43,18 +43,18 @@ def main(create):
 		exit()
 
 	# Delete local sync branch
-	Popen(['git', 'branch', '-D', 'sync']).wait()
+	Popen(['git', 'branch', '-D', branch_name]).wait()
 
 	# Match remote sync branch by pushing or pulling
 	if create:
 		# Force remote sync branch to match local sync branch
-		Popen(['git', 'checkout', '-b', 'sync']).wait()
-		Popen(['git', 'push', 'origin', 'sync', '--force']).wait()
+		Popen(['git', 'checkout', '-b', branch_name]).wait()
+		Popen(['git', 'push', 'origin', branch_name, '--force']).wait()
 	else:
 		# Use remote sync branch
-		Popen(['git', 'checkout', '-b', 'sync']).wait()
+		Popen(['git', 'checkout', '-b', branch_name]).wait()
 		Popen(['git', 'fetch', '--all']).wait()
-		Popen(['git', 'reset', '--hard', 'origin/sync']).wait()
+		Popen(['git', 'reset', '--hard', 'origin/{}'.format(branch_name)]).wait()
 
 	# Check whether files have been modified every second.
 	# If modified, push to github.
@@ -64,11 +64,11 @@ def main(create):
 		if 'nothing to commit' in status:
 			time.sleep(1)
 		else:
-			check_branch()
-			push()
+			check_branch(branch_name)
+			push(branch_name)
 
-		check_branch()
-		pull()
+		check_branch(branch_name)
+		pull(branch_name)
 
 if __name__ == '__main__':
 	parser = argparse.ArgumentParser(description='Syncing for git')
@@ -82,9 +82,14 @@ if __name__ == '__main__':
 		default=False,
 		action='store_true',
 		help='Flag to create sync branch based on remote sync branch')
+	parser.add_argument(
+		'--branch_name',
+		type=str,
+		default='sync',
+		help='Name of the branch to sync to')
 	args = parser.parse_args()
 
 	if args.create == args.listen:
 		raise ValueError('Must set exactly one flag')
 
-	main(args.create)
+	main(args.create, args.branch_name)

@@ -18,8 +18,9 @@ def get_branch_name():
 def get_status():
 	p = Popen(['git', 'status'], stdout=PIPE)
 	status = p.communicate()[0].decode('utf-8')
+	changed = (not 'nothing to commit' in status)
 
-	return status
+	return status, changed
 
 def pull(branch_name):
 	p = Popen(['git', 'pull', 'origin', branch_name], stdout=PIPE, stderr=PIPE)
@@ -35,8 +36,8 @@ def push(branch_name):
 
 def main(create, branch_name):
 	# Exit if changes in current branch
-	status = get_status()
-	if not 'nothing to commit' in status:
+	status, changed = get_status()
+	if changed:
 		print(status)
 		print('')
 		print('Please commit or stash your changes before syncing')
@@ -60,8 +61,8 @@ def main(create, branch_name):
 	# If modified, push to github.
 	# Pull every second.
 	while True:
-		status = get_status()
-		if 'nothing to commit' in status:
+		status, changed = get_status()
+		if not changed:
 			time.sleep(1)
 		else:
 			check_branch(branch_name)

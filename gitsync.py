@@ -15,6 +15,12 @@ def get_branch_name():
 		if branch_name[0] == '*':
 			return branch_name[2:]
 
+def get_status():
+	p = Popen(['git', 'status'], stdout=PIPE)
+	status = p.communicate()[0].decode('utf-8')
+
+	return status
+
 def pull():
 	p = Popen(['git', 'pull', 'origin', 'sync'], stdout=PIPE, stderr=PIPE)
 	out = p.communicate()[0].decode('utf-8')
@@ -24,10 +30,18 @@ def pull():
 def push():
 	Popen(['git', 'add', '*']).wait()
 	Popen(['git', 'status']).wait()
-	Popen(['git', 'commit', '-m', '"sync"']).wait()
+	Popen(['git', 'commit', '-m', 'sync']).wait()
 	Popen(['git', 'push', 'origin', 'sync']).wait()
 
 def main(create):
+	# Exit if changes in current branch
+	status = get_status()
+	if not 'nothing to commit' in status:
+		print(status)
+		print('')
+		print('Please commit or stash your changes before syncing')
+		exit()
+
 	# Delete local sync branch
 	Popen(['git', 'branch', '-D', 'sync']).wait()
 
@@ -46,9 +60,7 @@ def main(create):
 	# If modified, push to github.
 	# Pull every second.
 	while True:
-		p = Popen(['git', 'status'], stdout=PIPE)
-		status = p.communicate()[0].decode('utf-8')
-
+		status = get_status()
 		if 'nothing to commit' in status:
 			time.sleep(1)
 		else:
